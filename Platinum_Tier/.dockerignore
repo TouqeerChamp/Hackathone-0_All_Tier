@@ -1,0 +1,72 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Qwen Code
+.qwen/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.venv/
+ENV/
+env/
+.env.example
+*.egg-info/
+dist/
+build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# Documentation
+*.md
+!README.md
+!DEPLOYMENT.md
+
+# Logs
+*.log
+logs/
+!logs/.gitkeep
+
+# Data directories (mounted as volumes)
+inbox/
+needs_action/
+linkedin_drafts/
+done/
+
+# Credentials (mounted separately)
+token.pickle
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+
+# Node (if any)
+node_modules/
+npm-debug.log
+yarn-error.log

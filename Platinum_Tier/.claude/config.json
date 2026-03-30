@@ -1,0 +1,11 @@
+{
+  "mcp": {
+    "servers": [
+      {
+        "name": "google_search",
+        "transport": "stdio",
+        "command": ["python", ".claude/mcp/google_search.py"]
+      }
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "id": "test123",
+  "snippet": "This is a simple test email that should be categorized as a simple task",
+  "payload": {
+    "headers": [
+      {
+        "name": "Subject",
+        "value": "Test Email Subject"
+      },
+      {
+        "name": "From",
+        "value": "test@example.com"
+      },
+      {
+        "name": "Date",
+        "value": "Wed, 18 Feb 2026 10:00:00 +0000"
+      }
+    ],
+    "parts": [
+      {
+        "mimeType": "text/plain",
+        "body": {
+          "data": "VGhpcyBpcyB0aGUgZW1haWwgY29udGVudCBmb3IgdGVzdGluZy4="
+        }
+      }
+    ]
+  }
+}

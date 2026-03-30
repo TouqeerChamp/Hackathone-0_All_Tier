@@ -1,0 +1,228 @@
+# ===========================================
+# MASTER .GITIGNORE - AI EMPLOYEE PROJECT
+# ===========================================
+# This is the ONLY .gitignore that controls the entire repository.
+# All sub-folder .gitignore files should be removed.
+
+# ===========================================
+# SECURITY - CRITICAL (Never commit these)
+# ===========================================
+
+# Environment files with secrets
+**/.env
+**/.env.*
+**/*.env
+
+# Google OAuth credentials and tokens
+**/credentials.json
+**/token.pickle
+**/token.json
+
+# Other credential files
+**/service_account.json
+**/client_secret.json
+**/secrets.json
+**/api_keys.json
+**/*.key
+**/*.pem
+
+# ===========================================
+# PYTHON
+# ===========================================
+
+# Byte-compiled / optimized / DLL files
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+
+# C extensions
+**/*.so
+
+# Distribution / packaging
+**/build/
+**/develop-eggs/
+**/dist/
+**/downloads/
+**/eggs/
+**/.eggs/
+**/lib/
+**/lib64/
+**/parts/
+**/sdist/
+**/var/
+**/wheels/
+**/*.egg-info/
+**/.installed.cfg
+**/*.egg
+**/MANIFEST
+
+# Virtual environments
+**/venv/
+**/ENV/
+**/env/
+**/.venv/
+**/virtualenv/
+
+# PyInstaller
+**/*.manifest
+**/*.spec
+
+# Installer logs
+**/pip-log.txt
+**/pip-delete-this-directory.txt
+
+# ===========================================
+# LOGS & DATA
+# ===========================================
+
+# Logs
+**/logs/
+**/*.log
+**/automation.log
+
+# Audit logs
+**/audit_logs/
+
+# Inbox data (email contents)
+**/inbox/
+
+# LinkedIn drafts
+**/linkedin_drafts/
+
+# Social media data
+**/social_media/post_history.json
+
+# Generated briefings
+**/CEO_Briefing_*.md
+
+# ===========================================
+# IDE & EDITORS
+# ===========================================
+
+# VS Code
+**/.vscode/
+**/.vscode-test/
+
+# JetBrains IDEs
+**/.idea/
+**/*.iml
+**/*.ipr
+**/*.iws
+
+# Sublime Text
+**/.sublime-project
+**/.sublime-workspace
+**/*.swp
+**/*.swo
+**/*~
+
+# Emacs
+**/*~
+**/.emacs.desktop
+**/.emacs.desktop.lock
+**/*.elc
+
+# Vim
+**/.viminfo
+**/.nviminfo
+
+# ===========================================
+# OS GENERATED FILES
+# ===========================================
+
+# macOS
+**/.DS_Store
+**/.AppleDouble
+**/.LSOverride
+**/._*
+
+# Windows
+**/Thumbs.db
+**/ehthumbs.db
+**/Desktop.ini
+**/$RECYCLE.BIN/
+
+# Linux
+**/.Trash-*/
+
+# ===========================================
+# TESTING & COVERAGE
+# ===========================================
+
+# Test files (optional - uncomment if you don't want tests in repo)
+# **/test_*.py
+# **/*_test.py
+# **/tests/
+
+# Coverage
+**/htmlcov/
+**/.tox/
+**/.coverage
+**/.coverage.*
+**/coverage.xml
+**/*.cover
+
+# Hypothesis
+**/.hypothesis/
+
+# ===========================================
+# MISCELLANEOUS
+# ===========================================
+
+# Temporary files
+**/*.tmp
+**/*.temp
+**/temp/
+**/tmp/
+
+# Cache directories
+**/.cache/
+**/.pytest_cache/
+**/.mypy_cache/
+
+# Jupyter Notebook
+**/.ipynb_checkpoints/
+
+# mypy
+**/.mypy_cache/
+**/.dmypy.json
+**/dmypy.json
+
+# ===========================================
+# TIER-SPECIFIC CONFIG (Local settings)
+# ===========================================
+
+# Claude local settings
+**/.claude/settings.local.json
+
+# Qwen local settings  
+**/.qwen/settings.json
+**/.qwen/settings.json.orig
+
+# MCP configs (may contain API keys)
+**/.claude/mcp/google_config.json
+**/.claude/mcp/google_search.json
+
+# ===========================================
+# DOCKER (if not needed in repo)
+# ===========================================
+
+# **/Dockerfile
+# **/docker-compose.yml
+# **/.dockerignore
+
+# ===========================================
+# DOCUMENTATION (Generated)
+# ===========================================
+
+# Generated plans
+**/*_plan.json
+**/needs_action/*_Plan.md
+
+# ===========================================
+# NOTES:
+# ===========================================
+# 1. The **/ prefix ensures patterns apply recursively to ALL subdirectories
+# 2. Patterns are evaluated from top to bottom
+# 3. Use !pattern to negate/whitelist (e.g., !test_helper.py)
+# 4. Always test with: git status --ignored

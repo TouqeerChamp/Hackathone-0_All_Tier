@@ -1,0 +1,209 @@
+# Platinum Tier AI Employee - Docker Compose
+# ===========================================
+# Two-service architecture:
+#   - ai_agent: Autonomous AI employee
+#   - odoo_db: PostgreSQL database for Odoo ERP (Cloud-ready)
+#
+# Usage:
+#   docker-compose up -d          # Start services
+#   docker-compose logs -f        # View logs
+#   docker-compose down           # Stop services
+#   docker-compose restart        # Restart services
+
+version: '3.8'
+
+services:
+  # ============================================================================
+  # AI Agent Service - Autonomous Employee
+  # ============================================================================
+  ai_agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: platinum_ai_employee
+    
+    # Always-On Logic: Restart container if it crashes
+    restart: always
+    
+    # Environment variables
+    environment:
+      # Odoo Connection (connects to odoo_db service)
+      - ODOO_URL=http://odoo:8069
+      - ODOO_DB=ai_employee_db
+      - ODOO_USER=${ODOO_USER:-touqeerchamp@gmail.com}
+      - ODOO_PASS=${ODOO_PASS:-OdooAdmin123}
+      - ODOO_DB_HOST=odoo_db
+      - ODOO_DB_PORT=5432
+      
+      # Google API Credentials
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY:-AIzaSyDi0Oi_1h0uEermw3lLhTY2GZGF--EDuN4}
+      - GOOGLE_CSE_ID=${GOOGLE_CSE_ID:-b73821318aa53412b}
+      
+      # Application Settings
+      - PYTHONUNBUFFERED=1
+      - LOGS_DIR=/app/logs
+      - AUDIT_LOGS_DIR=/app/logs/audit_logs
+    
+    # Environment file (optional - can also use .env)
+    env_file:
+      - .env
+    
+    # Volumes for persistence
+    volumes:
+      # Persist logs
+      - ./logs:/app/logs
+      - ./inbox:/app/inbox
+      - ./needs_action:/app/needs_action
+      - ./linkedin_drafts:/app/linkedin_drafts
+      - ./logs/audit_logs:/app/logs/audit_logs
+      # Persist credentials
+      - ./credentials.json:/app/credentials.json:ro
+      - ./.env:/app/.env:ro
+    
+    # Network configuration
+    networks:
+      - platinum_network
+    
+    # Resource limits (optional - adjust based on your needs)
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys; sys.exit(0)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    
+    # Depends on Odoo database
+    depends_on:
+      odoo_db:
+        condition: service_healthy
+
+  # ============================================================================
+  # Odoo Database Service - PostgreSQL (Cloud-ready)
+  # ============================================================================
+  odoo_db:
+    image: postgres:15-alpine
+    container_name: platinum_odoo_db
+    
+    # Always-On Logic: Restart container if it crashes
+    restart: always
+    
+    # Environment variables for PostgreSQL
+    environment:
+      - POSTGRES_DB=ai_employee_db
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=${ODOO_DB_PASSWORD:-OdooDbPassword123!}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    
+    # Volumes for data persistence
+    volumes:
+      # Persistent database storage
+      - odoo_db_data:/var/lib/postgresql/data
+      # Optional: Backup volume
+      - odoo_db_backups:/backups
+    
+    # Network configuration
+    networks:
+      - platinum_network
+    
+    # Ports (optional - expose only if needed for external access)
+    # For production, consider removing this and using internal networking only
+    ports:
+      - "5432:5432"
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    
+    # Health check
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U odoo -d ai_employee_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    
+    # Logging configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ============================================================================
+  # Odoo ERP Service (Optional - Uncomment if you need full Odoo instance)
+  # ============================================================================
+  # odoo:
+  #   image: odoo:16.0
+  #   container_name: platinum_odoo_erp
+  #   
+  #   # Always-On Logic
+  #   restart: always
+  #   
+  #   environment:
+  #     - HOST=odoo_db
+  #     - USER=odoo
+  #     - PASSWORD=${ODOO_DB_PASSWORD:-OdooDbPassword123!}
+  #   
+  #   ports:
+  #     - "8069:8069"
+  #   
+  #   networks:
+  #     - platinum_network
+  #   
+  #   depends_on:
+  #     - odoo_db
+  #   
+  #   volumes:
+  #     - odoo_config:/etc/odoo
+  #     - odoo_addons:/mnt/extra-addons
+
+# ==============================================================================
+# Networks
+# ==============================================================================
+networks:
+  platinum_network:
+    driver: bridge
+    name: platinum_tier_network
+
+# ==============================================================================
+# Volumes
+# ==============================================================================
+volumes:
+  odoo_db_data:
+    name: platinum_odoo_db_data
+    driver: local
+  
+  odoo_db_backups:
+    name: platinum_odoo_db_backups
+    driver: local
+  
+  # Optional Odoo volumes (uncomment if using Odoo service)
+  # odoo_config:
+  #   name: platinum_odoo_config
+  #   driver: local
+  # odoo_addons:
+  #   name: platinum_odoo_addons
+  #   driver: local
