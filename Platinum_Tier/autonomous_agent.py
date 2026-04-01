@@ -683,14 +683,14 @@ def post_work_summary_to_social_media(audit: AuditLogger, stats: Dict[str, int])
         print(f"   ✗ LinkedIn post failed: {error_msg}")
 
     # Log social media campaign completion
-    successful_posts = sum(1 for v in [results['facebook'], results['instagram'], results['twitter'], results['linkedin']] if v is not None and v.get('status') == 'published')
+    successful_posts = sum(1 for v in [results['facebook'], results['instagram'], results['twitter'], results['linkedin']] if v is not None and isinstance(v, dict) and v.get('status') == 'published')
     audit.log(
         event_type="social_media_campaign_completed",
         status="success" if successful_posts > 0 else "error",
         details={
             "successful_posts": successful_posts,
             "failed_posts": len(results['errors']),
-            "platforms_posted": [k for k, v in results.items() if v is not None and v.get('status') == 'published' and k != 'errors']
+            "platforms_posted": [k for k, v in results.items() if k != 'errors' and v is not None and isinstance(v, dict) and v.get('status') == 'published']
         }
     )
 
