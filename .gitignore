@@ -226,3 +226,5 @@
 # 2. Patterns are evaluated from top to bottom
 # 3. Use !pattern to negate/whitelist (e.g., !test_helper.py)
 # 4. Always test with: git status --ignored
+Platinum_Tier/linkedin_cookies.json 
+Platinum_Tier/post_tracker.json 

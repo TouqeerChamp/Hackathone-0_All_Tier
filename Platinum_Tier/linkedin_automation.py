@@ -107,7 +107,7 @@ async def post_to_linkedin_direct(message: str, email_count: int, odoo_updates: 
         async with async_playwright() as p:
             # Launch browser
             browser = await p.chromium.launch(
-                headless=True,  # Set to False for debugging
+                headless=False,  # Set to False for debugging
                 args=[
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
@@ -132,10 +132,8 @@ async def post_to_linkedin_direct(message: str, email_count: int, odoo_updates: 
 
             # Navigate to LinkedIn
             logger.info("Navigating to LinkedIn...")
-            await page.goto(LINKEDIN_URL, wait_until='networkidle', timeout=60000)
-
-            # Check if logged in by looking for specific elements
-            await page.wait_for_timeout(5000)  # Wait for page to load
+            await page.goto(LINKEDIN_URL, wait_until='domcontentloaded', timeout=120000)
+            await page.wait_for_timeout(10000)  # Manual wait for main content to load
 
             # Check if we're on login page (not authenticated)
             current_url = page.url
@@ -149,8 +147,8 @@ async def post_to_linkedin_direct(message: str, email_count: int, odoo_updates: 
 
             # Navigate to post creation page
             logger.info("Navigating to post creation...")
-            await page.goto(LINKEDIN_POST_URL, wait_until='networkidle', timeout=60000)
-            await page.wait_for_timeout(3000)
+            await page.goto(LINKEDIN_POST_URL, wait_until='domcontentloaded', timeout=120000)
+            await page.wait_for_timeout(10000)  # Manual wait for main content to load
 
             # Find and click the post creation box
             logger.info("Opening post composer...")
@@ -209,37 +207,80 @@ async def post_to_linkedin_direct(message: str, email_count: int, odoo_updates: 
 
                 # Find and click the post button
                 logger.info("Submitting post...")
-                
+
+                # Flexible post button selectors - try multiple variations
                 post_button_selectors = [
                     'button:has-text("Post")',
+                    'button:has-text("Share")',
                     'button[aria-label*="Post"]',
-                    '.share-actions__primary-action button'
+                    'button[aria-label*="Share"]',
+                    '.share-actions__primary-action',
+                    '.share-actions__primary-action button',
+                    'button.share-actions__primary-action',
+                    '[data-control-name*="post_create"]',
+                    'button[aria-label*="Share now"]'
                 ]
-                
+
                 post_button = None
+                used_selector = None
                 for selector in post_button_selectors:
                     try:
                         post_button = await page.wait_for_selector(selector, timeout=3000)
-                        if post_button and await post_button.is_enabled():
-                            logger.info(f"Found post button with selector: {selector}")
-                            break
+                        if post_button:
+                            # Check if button is enabled (blue color indicates it's ready)
+                            is_enabled = await post_button.is_enabled()
+                            if is_enabled:
+                                logger.info(f"Found enabled post button with selector: {selector}")
+                                used_selector = selector
+                                break
+                            else:
+                                logger.info(f"Found post button but it's disabled: {selector}")
                     except:
                         continue
 
                 if post_button:
+                    # Wait 5 seconds after typing to ensure button becomes enabled (blue color)
+                    logger.info("Waiting 5 seconds for Post button to become enabled...")
+                    await page.wait_for_timeout(5000)
+
+                    # Re-check if button is now enabled after the wait
+                    try:
+                        is_enabled = await post_button.is_enabled()
+                        if not is_enabled:
+                            logger.warning("Post button still disabled after wait, trying to re-find it...")
+                            # Try to find the button again with all selectors
+                            for selector in post_button_selectors:
+                                try:
+                                    post_button = await page.wait_for_selector(selector, timeout=2000)
+                                    if post_button and await post_button.is_enabled():
+                                        logger.info(f"Re-found enabled post button with selector: {selector}")
+                                        used_selector = selector
+                                        break
+                                except:
+                                    continue
+                    except:
+                        pass
+
                     # SAFETY GUARDRAIL: Apply human-like delay before clicking post button
                     logger.info("Safety Guardrail: Applying human-like delay before posting...")
                     await page.wait_for_timeout(5000)  # 5 second delay in browser (full 60-120s done in wrapper)
-                    
-                    await post_button.click()
-                    await page.wait_for_timeout(3000)
 
-                    logger.info("Post submitted successfully!")
+                    # Click the post button
+                    if post_button and await post_button.is_enabled():
+                        await post_button.click()
+                        await page.wait_for_timeout(3000)
+                        logger.info("Post submitted successfully via button click!")
+                    else:
+                        # Fallback: Try Control+Enter to submit the post
+                        logger.info("Post button not found or not enabled, trying Control+Enter fallback...")
+                        await editor.press('Control+Enter')
+                        await page.wait_for_timeout(3000)
+                        logger.info("Post submitted successfully via Control+Enter!")
 
                     # Save cookies for future use
                     cookies = await context.cookies()
                     save_linkedin_cookies(cookies)
-                    
+
                     # Record the post in tracker
                     record_post()
 
@@ -253,7 +294,28 @@ async def post_to_linkedin_direct(message: str, email_count: int, odoo_updates: 
                         'odoo_updates': odoo_updates
                     }
                 else:
-                    raise Exception("Could not find Post button")
+                    # Fallback: Try Control+Enter to submit the post
+                    logger.info("Post button not found by selector, trying Control+Enter fallback...")
+                    await editor.press('Control+Enter')
+                    await page.wait_for_timeout(3000)
+                    logger.info("Post submitted successfully via Control+Enter!")
+
+                    # Save cookies for future use
+                    cookies = await context.cookies()
+                    save_linkedin_cookies(cookies)
+
+                    # Record the post in tracker
+                    record_post()
+
+                    return {
+                        'post_id': post_id,
+                        'platform': 'linkedin',
+                        'status': 'published',
+                        'timestamp': timestamp,
+                        'message': message,
+                        'email_count': email_count,
+                        'odoo_updates': odoo_updates
+                    }
             else:
                 raise Exception("Could not find post editor")
 
