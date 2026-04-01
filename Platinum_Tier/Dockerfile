@@ -59,8 +59,6 @@ RUN playwright install --with-deps chromium
 
 # Copy all application scripts
 COPY *.py ./
-COPY .env .
-COPY credentials.json ./
 
 # Copy social_media module
 COPY social_media/ ./social_media/
