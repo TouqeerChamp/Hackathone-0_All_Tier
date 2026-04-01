@@ -1,14 +1,14 @@
 # Platinum Tier AI Employee - Dockerfile
 # =======================================
 # Multi-service autonomous agent with Odoo ERP integration
-# Based on Python 3.11-slim
+# Based on Python 3.11-slim with Playwright support for LinkedIn automation
 
 FROM python:3.11-slim
 
 # Metadata
 LABEL maintainer="Mohammad Touqeer"
-LABEL version="1.0"
-LABEL description="Platinum Tier AI Employee - Autonomous Multi-Step Task Processor"
+LABEL version="2.0"
+LABEL description="Platinum Tier AI Employee - Autonomous Multi-Step Task Processor with Playwright"
 
 # Environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -24,9 +24,27 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 # Set working directory
 WORKDIR ${APP_HOME}
 
-# Install system dependencies
+# Install system dependencies for Playwright (Chromium)
+# See: https://playwright.dev/python/docs/browsers#install-system-dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
+    # Playwright Chromium dependencies
+    libnss3 \
+    libnspr4 \
+    libatk1.0-0 \
+    libatk-bridge2.0-0 \
+    libcups2 \
+    libdrm2 \
+    libdbus-1-3 \
+    libxkbcommon0 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxfixes3 \
+    libxrandr2 \
+    libgbm1 \
+    libasound2 \
+    libpango-1.0-0 \
+    libcairo2 \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
@@ -35,6 +53,9 @@ COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Install Playwright Chromium browser with system dependencies
+RUN playwright install --with-deps chromium
 
 # Copy all application scripts
 COPY *.py ./
@@ -48,9 +69,15 @@ COPY social_media/ ./social_media/
 RUN mkdir -p ${LOGS_DIR} ${INBOX_DIR} ${AUDIT_LOGS_DIR} \
     && mkdir -p /app/needs_action \
     && mkdir -p /app/linkedin_drafts \
-    && mkdir -p /app/logs/audit_logs/cache/google_search
+    && mkdir -p /app/logs/audit_logs/cache/google_search \
+    && mkdir -p /app/.linkedin_data
 
-# Create startup script (shell equivalent of run_ai_employee.bat)
+# Initialize linkedin_cookies.json and post_tracker.json if missing
+RUN echo '[]' > /app/linkedin_cookies.json \
+    && echo '{"last_post_timestamp": null, "daily_count": 0, "last_reset_date": null, "total_posts": 0}' > /app/post_tracker.json
+
+# Create startup script (shell equivalent of run_ai_employee.sh)
+# Prioritizes autonomous_agent.py which handles all tiers (Gmail, Odoo, LinkedIn)
 RUN echo '#!/bin/bash\n\
 set -e\n\
 \n\
@@ -62,38 +89,29 @@ echo "============================================"\n\
 # Log file\n\
 LOG_FILE="/app/automation.log"\n\
 \n\
-# Initialize log\
+# Initialize log\n\
 echo "============================================" > "${LOG_FILE}"\n\
 echo "AI Employee Automation Run - Started: $(date)" >> "${LOG_FILE}"\n\
 echo "============================================" >> "${LOG_FILE}"\n\
 \n\
-# Task 0: System Health Check (if exists)\n\
-if [ -f "system_health_check.py" ]; then\n\
-    echo "[Task 0] Running system_health_check.py..."\n\
-    python system_health_check.py >> "${LOG_FILE}" 2>&1 || echo "WARNING: system_health_check.py reported issues"\n\
+# Main Task: Autonomous Agent (handles Gmail, Odoo, and LinkedIn in one go)\n\
+if [ -f "autonomous_agent.py" ]; then\n\
+    echo "[Main Task] Running autonomous_agent.py..."\n\
+    echo "  -> Processes Gmail, Odoo, and LinkedIn automation"\n\
+    python autonomous_agent.py >> "${LOG_FILE}" 2>&1 || echo "ERROR: autonomous_agent.py failed"\n\
+else\n\
+    echo "ERROR: autonomous_agent.py not found!"\n\
 fi\n\
 \n\
-# Task 1: Inbox Scanner\n\
-if [ -f "inbox_scanner.py" ]; then\n\
-    echo "[Task 1] Running inbox_scanner.py..."\n\
-    python inbox_scanner.py >> "${LOG_FILE}" 2>&1 || echo "ERROR: inbox_scanner.py failed"\n\
-fi\n\
-\n\
-# Task 2: LinkedIn Automation\n\
-if [ -f "linkedin_automation.py" ]; then\n\
-    echo "[Task 2] Running linkedin_automation.py..."\n\
-    python linkedin_automation.py >> "${LOG_FILE}" 2>&1 || echo "ERROR: linkedin_automation.py failed"\n\
-fi\n\
-\n\
-# Task 3: Create Plans (Reasoning Loop)\n\
+# Task 1: Create Plans (Reasoning Loop) - Optional secondary task\n\
 if [ -f "create_plans.py" ]; then\n\
-    echo "[Task 3] Running create_plans.py..."\n\
+    echo "[Task 1] Running create_plans.py..."\n\
     python create_plans.py || echo "ERROR: create_plans.py failed"\n\
 fi\n\
 \n\
-# Task 4: CEO Briefer\n\
+# Task 2: CEO Briefer - Optional secondary task\n\
 if [ -f "ceo_briefer.py" ]; then\n\
-    echo "[Task 4] Running ceo_briefer.py..."\n\
+    echo "[Task 2] Running ceo_briefer.py..."\n\
     python ceo_briefer.py >> "${LOG_FILE}" 2>&1 || echo "WARNING: ceo_briefer.py reported issues"\n\
 fi\n\
 \n\
