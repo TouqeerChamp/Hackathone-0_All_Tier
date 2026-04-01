@@ -40,6 +40,7 @@ from social_media.social_manager import (
     post_to_twitter,
     get_social_summary
 )
+from linkedin_automation import post_to_linkedin, generate_linkedin_summary
 
 # Configure logging
 logging.basicConfig(
@@ -173,6 +174,30 @@ class AuditLogger:
             status="error",
             details={
                 "platform": platform,
+                "error": error,
+                "message": message
+            }
+        )
+
+    def log_linkedin_post(self, post_id: str, message: str, email_count: int, odoo_updates: int):
+        """Log LinkedIn post creation"""
+        self.log(
+            event_type="linkedin_post",
+            status="success",
+            details={
+                "post_id": post_id,
+                "message": message,
+                "email_count": email_count,
+                "odoo_updates": odoo_updates
+            }
+        )
+
+    def log_linkedin_post_failed(self, error: str, message: str):
+        """Log failed LinkedIn post creation"""
+        self.log(
+            event_type="linkedin_post_failed",
+            status="error",
+            details={
                 "error": error,
                 "message": message
             }
@@ -496,7 +521,7 @@ def ralph_wiggum_loop(audit: AuditLogger) -> Dict[str, int]:
 
 def post_work_summary_to_social_media(audit: AuditLogger, stats: Dict[str, int]) -> Dict[str, Any]:
     """
-    Post a summary of today's work to all social media platforms
+    Post a summary of today's work to all social media platforms including LinkedIn
 
     Args:
         audit: AuditLogger instance for logging
@@ -512,13 +537,14 @@ def post_work_summary_to_social_media(audit: AuditLogger, stats: Dict[str, int])
     # Create summary message
     emails_processed = stats.get('emails_processed', 0)
     customers_added = stats.get('customers_added', 0)
-    
+
     summary_message = f"Today our AI Employee processed {emails_processed} emails and added {customers_added} customers to Odoo! 🚀 #AI #Automation #Productivity"
 
     results = {
         'facebook': None,
         'instagram': None,
         'twitter': None,
+        'linkedin': None,
         'errors': []
     }
 
@@ -591,20 +617,85 @@ def post_work_summary_to_social_media(audit: AuditLogger, stats: Dict[str, int])
         )
         print(f"   ✗ Twitter post failed: {error_msg}")
 
+    # Post to LinkedIn (REAL-TIME DIRECT POSTING with Safety Guardrails)
+    print("\n4. Posting to LinkedIn (Real-Time Direct Posting with Safety Guardrails)...")
+    try:
+        # Generate the LinkedIn-specific summary message
+        linkedin_message = generate_linkedin_summary(emails_processed, customers_added)
+        print(f"   Message: {linkedin_message}")
+
+        linkedin_result = post_to_linkedin(
+            message=linkedin_message,
+            email_count=emails_processed,
+            odoo_updates=customers_added
+        )
+        results['linkedin'] = linkedin_result
+
+        # Handle different LinkedIn post statuses
+        post_status = linkedin_result.get('status', '')
+        
+        if post_status == 'published':
+            audit.log_linkedin_post(
+                post_id=linkedin_result['post_id'],
+                message=linkedin_message,
+                email_count=emails_processed,
+                odoo_updates=customers_added
+            )
+            print(f"   ✓ LinkedIn Post ID: {linkedin_result['post_id']}")
+            print(f"   ✓ Post published LIVE on LinkedIn!")
+        elif post_status == 'skipped_safety_limit':
+            # Daily limit reached - safety guardrail activated
+            audit.log(
+                event_type="linkedin_post_skipped",
+                status="skipped",
+                details={
+                    "reason": "daily_limit_reached",
+                    "message": linkedin_message,
+                    "daily_count": linkedin_result.get('daily_count', 0),
+                    "max_posts": linkedin_result.get('max_posts', 2),
+                    "safety_guardrail": True
+                }
+            )
+            print(f"   ⚠️  Daily LinkedIn limit reached. Post skipped for safety.")
+            print(f"      (Posts today: {linkedin_result.get('daily_count', 0)}/{linkedin_result.get('max_posts', 2)})")
+        elif post_status == 'saved_for_manual_posting':
+            # Fallback mode - saved to file
+            audit.log(
+                event_type="linkedin_post_saved",
+                status="success",
+                details={
+                    "post_id": linkedin_result['post_id'],
+                    "message": linkedin_message,
+                    "filepath": linkedin_result.get('filepath', 'N/A')
+                }
+            )
+            print(f"   ⚠️  Post saved for manual posting: {linkedin_result.get('filepath', 'N/A')}")
+        else:
+            # Unknown status
+            print(f"   ⚠️  LinkedIn post status: {post_status}")
+    except Exception as e:
+        error_msg = str(e)
+        results['errors'].append({'platform': 'linkedin', 'error': error_msg})
+        audit.log_linkedin_post_failed(
+            error=error_msg,
+            message=generate_linkedin_summary(emails_processed, customers_added)
+        )
+        print(f"   ✗ LinkedIn post failed: {error_msg}")
+
     # Log social media campaign completion
-    successful_posts = sum(1 for v in [results['facebook'], results['instagram'], results['twitter']] if v is not None)
+    successful_posts = sum(1 for v in [results['facebook'], results['instagram'], results['twitter'], results['linkedin']] if v is not None and v.get('status') == 'published')
     audit.log(
         event_type="social_media_campaign_completed",
         status="success" if successful_posts > 0 else "error",
         details={
             "successful_posts": successful_posts,
             "failed_posts": len(results['errors']),
-            "platforms_posted": [k for k, v in results.items() if v is not None and k != 'errors']
+            "platforms_posted": [k for k, v in results.items() if v is not None and v.get('status') == 'published' and k != 'errors']
         }
     )
 
     print("\n" + "-" * 70)
-    print(f"Social media update complete: {successful_posts}/3 posts successful")
+    print(f"Social media update complete: {successful_posts}/4 posts successful")
 
     return results
 
