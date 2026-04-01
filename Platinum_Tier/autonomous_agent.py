@@ -19,6 +19,8 @@ import os
 import sys
 import json
 import logging
+import threading
+from http.server import HTTPServer, BaseHTTPRequestHandler
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any, Optional, Tuple
@@ -53,6 +55,42 @@ logger = logging.getLogger("AutonomousAgent")
 AUDIT_LOG_DIR = "logs/audit_logs"
 INBOX_DIR = "inbox"
 HEARTBEAT_LOG = Path(AUDIT_LOG_DIR) / "heartbeat.log"
+HEALTH_CHECK_PORT = 8000
+
+
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    """Simple HTTP health check handler for Render deployment"""
+
+    def do_GET(self):
+        """Handle GET requests for health checks"""
+        if self.path == '/health' or self.path == '/':
+            self.send_response(200)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            response = {
+                'status': 'healthy',
+                'service': 'autonomous_agent',
+                'timestamp': datetime.now().isoformat()
+            }
+            self.wfile.write(json.dumps(response).encode())
+        else:
+            self.send_response(404)
+            self.send_header('Content-type', 'application/json')
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': 'Not found'}).encode())
+
+    def log_message(self, format, *args):
+        """Suppress default HTTP server logging"""
+        pass
+
+
+def start_health_server():
+    """Start the health check HTTP server in a background thread"""
+    server = HTTPServer(('0.0.0.0', HEALTH_CHECK_PORT), HealthCheckHandler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    logger.info(f"Health check server started on port {HEALTH_CHECK_PORT}")
+    logger.info(f"Health endpoint: http://localhost:{HEALTH_CHECK_PORT}/health")
 
 
 class AuditLogger:
@@ -727,6 +765,9 @@ def main():
     audit = AuditLogger()
 
     logger.info("Starting Ralph Wiggum Loop autonomous agent")
+
+    # Start health check server for Render deployment
+    start_health_server()
 
     # Check critical background services (Heartbeat, Gmail Watcher)
     logger.info("Checking critical background services...")
